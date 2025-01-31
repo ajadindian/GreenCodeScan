@@ -5,6 +5,9 @@ import logging
 import time
 import requests
 from dotenv import load_dotenv
+import csv
+from datetime import datetime
+import sys
 
 def get_env_variable(var_name, is_required=True):
     value = os.getenv(var_name)
@@ -108,8 +111,8 @@ def load_prompts_from_env():
 # Define base directories
 env_path = os.path.abspath(".env")
 load_dotenv(dotenv_path=env_path, verbose=True, override=True)
-BASE_DIR = os.path.dirname(env_path)
-RESULT_DIR = os.path.join(BASE_DIR, 'Result')
+source_directory = os.path.dirname(env_path)
+RESULT_DIR = os.path.join(source_directory , 'Result')
 
 def ensure_result_directory():
     """Ensure the Result directory exists."""
@@ -204,40 +207,49 @@ def extract_changes_summary(data):
         return "Error extracting changes", "Error identifying next steps"
 
 def create_unit_test_files(client, assistant, file_list, test_file_directory):
+    """
+    Creates unit test files for all source files in the file_list.
+    Gets prompt from environment variable but test generation remains mandatory.
+    """
+    # Get prompt from environment variable
     prompt_testcase = get_env_variable('PROMPT_GENERATE_TESTCASES', is_required=False)
-    if not prompt_testcase or ", " not in prompt_testcase:
-        logging.warning("Unit test case prompt not found or incorrectly formatted in .env.")
-        return
     
-    prompt, toggle = prompt_testcase.rsplit(", ", 1)
-    if toggle.strip().lower() != 'y':
-        logging.info("Skipping unit test generation as per .env configuration.")
-        return
+    # Default prompt if environment variable is not set
+    DEFAULT_PROMPT = """
+Create a comprehensive unit test case for the provided code.
+Ensure:
+1. The tests cover all edge cases and core functionality.
+
+After the test code, provide:
+CHANGES_START
+- [test coverage description]
+CHANGES_END
+
+NEXT_STEPS_START
+- [one concise recommendation for test improvement]
+NEXT_STEPS_END
+"""
+
+    # Use default prompt if environment variable is not set
+    if not prompt_testcase:
+        logging.warning("Unit test case prompt not found in .env, using default prompt.")
+        prompt_testcase = DEFAULT_PROMPT
 
     for file_path in file_list:
         file_name = os.path.basename(file_path)
         base_name, ext = os.path.splitext(file_name)
-        
+
         if 'test' in base_name.lower():
             logging.info(f"Skipping test file: {file_path}")
             continue
 
-            # -----------------modefied code-----------------
-
         # Get the relative path of the file from the source directory
-        relative_path = os.path.relpath(file_path, BASE_DIR)       #added
-            
-        # test_file_name = f"{base_name}Test{ext}"
-        # test_file_path = os.path.join(test_file_directory, test_file_name)
+        relative_path = os.path.relpath(file_path, source_directory)
+        test_file_name = f"{base_name}Test{ext}"
+        test_file_path = os.path.join(test_file_directory, os.path.dirname(relative_path), test_file_name)
 
-        # Construct the test file path preserving the directory structure
-        test_file_name = f"{base_name}Test{ext}"    #replaced
-        test_file_path = os.path.join(test_file_directory, os.path.dirname(relative_path), test_file_name) #replaced
-        
         # Ensure the directory structure exists in the test directory
-        ensure_directory_structure(os.path.dirname(test_file_path)) #added
-
-            #-------------------------------------------------
+        ensure_directory_structure(os.path.dirname(test_file_path))
 
         if os.path.exists(test_file_path):
             logging.info(f"Test file already exists: {test_file_path}")
@@ -246,12 +258,12 @@ def create_unit_test_files(client, assistant, file_list, test_file_directory):
         try:
             with open(file_path, "rb") as file:
                 uploaded_file = client.files.create(file=file, purpose='assistants')
-                logging.info(f"File uploaded for unit test creation: {file_name}")
+            logging.info(f"File uploaded for unit test creation: {file_name}")
 
-            prompt_formatted = prompt.format(file_extension=ext, file_name=file_name)
             thread = client.beta.threads.create(
-                messages=[{"role": "user", "content": prompt_formatted, "file_ids": [uploaded_file.id]}]
+                messages=[{"role": "user", "content": prompt_testcase, "file_ids": [uploaded_file.id]}]
             )
+            
             run = client.beta.threads.runs.create(thread_id=thread.id, assistant_id=assistant.id)
 
             # Wait for completion
@@ -260,14 +272,14 @@ def create_unit_test_files(client, assistant, file_list, test_file_directory):
                 run_status = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id).status
                 if run_status == 'completed':
                     break
-                elif time.time() - start_time > 1200:
+                elif time.time() - start_time > 1200:  # 20 minutes timeout
                     logging.warning(f"Unit test creation timed out for file: {file_name}")
                     break
                 time.sleep(5)
 
             messages = client.beta.threads.messages.list(thread_id=thread.id)
             data = json.loads(messages.model_dump_json(indent=2))
-            
+
             # Extract code and changes summary
             code = None
             if data['data'] and data['data'][0]['content'] and data['data'][0]['content'][0]['text']['annotations']:
@@ -276,24 +288,51 @@ def create_unit_test_files(client, assistant, file_list, test_file_directory):
             if code:
                 content = client.files.content(code)
                 content.write_to_file(test_file_path)
-                
                 # Log modifications to the central CSV file
                 changes_summary, next_steps = extract_changes_summary(data)
                 log_modifications(test_file_name, changes_summary, next_steps)
-                
                 logging.info(f"Unit test file created: {test_file_path}")
-
             else:
                 logging.error(f"Failed to create unit test for file: {file_path}")
 
         except Exception as e:
             logging.error(f"Error processing file {file_name} for unit test: {e}")
+            
+def apply_green_prompts(client, assistant, file_id, refined_file_path):
+    """
+    Applies green prompts to refactor code with efficiency and readability improvements.
+    Gets prompt from environment variable with a default fallback.
+    """
+    # Get prompt from environment variable
+    green_prompt = get_env_variable('GREEN_PROMPT', is_required=False)
+    
+    # Default prompt if environment variable is not set
+    DEFAULT_GREEN_PROMPT = """ 
+Refactor this code to improve its efficiency, readability, and maintainability while keeping the functionality unchanged. 
+Ensure: 
+1. The refactored code is more efficient and optimized. 
+2. Add comments in the code where significant changes were made. 
 
-def apply_green_prompts(client, assistant, file_id, prompt, refined_file_path):
-    logging.info(f"Applying prompt: {prompt} to file {file_id}")
+After the code, provide: 
+CHANGES_START 
+- [specific change description 1] 
+CHANGES_END  
+
+NEXT_STEPS_START 
+- [one concise recommendation for future improvement] 
+NEXT_STEPS_END 
+"""
+
+    # Use default prompt if environment variable is not set
+    if not green_prompt:
+        logging.warning("Green prompt not found in .env, using default prompt.")
+        green_prompt = DEFAULT_GREEN_PROMPT
+
+    logging.info(f"Applying green prompt to file {file_id}")
+    
     try:
         thread = client.beta.threads.create(
-            messages=[{"role": "user", "content": prompt, "file_ids": [file_id]}]
+            messages=[{"role": "user", "content": green_prompt, "file_ids": [file_id]}]
         )
         run = client.beta.threads.runs.create(thread_id=thread.id, assistant_id=assistant.id)
 
@@ -302,7 +341,7 @@ def apply_green_prompts(client, assistant, file_id, prompt, refined_file_path):
             run_status = client.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id).status
             if run_status == 'completed':
                 break
-            elif time.time() - start_time > 1200:
+            elif time.time() - start_time > 1200:  # 20 minutes timeout
                 logging.warning(f"Processing timed out for file: {file_id}")
                 return False
             time.sleep(5)
@@ -323,15 +362,14 @@ def apply_green_prompts(client, assistant, file_id, prompt, refined_file_path):
                 changes_summary, next_steps = extract_changes_summary(data)
                 log_modifications(os.path.basename(refined_file_path), changes_summary, next_steps)
                 
-                logging.info(f"File refined successfully with prompt: {prompt}")
+                logging.info("File refined successfully with green prompt")
                 return True
             except Exception as e:
-                logging.error(f"Error writing refined file for prompt {prompt}: {e}")
+                logging.error(f"Error writing refined file: {e}")
                 return False
         else:
-            logging.error(f"No code found in response for prompt: {prompt} and file {file_id}")
+            logging.error(f"No code found in response for file {file_id}")
             return False
-
     except Exception as e:
-        logging.error(f"Exception occurred while applying prompt '{prompt}' to file {file_id}: {e}")
+        logging.error(f"Exception occurred while applying green prompt to file {file_id}: {e}")
         return False
