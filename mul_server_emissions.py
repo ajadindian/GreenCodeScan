@@ -6,7 +6,18 @@ from datetime import datetime
 import os
 from threading import Lock
 import logging
-import wmi
+#import wmi
+from dotenv import load_dotenv
+
+# Load environment variables
+env_path = os.path.abspath(".env")
+load_dotenv(dotenv_path=env_path, verbose=True, override=True)
+
+# Define the result directory
+RESULT_DIR = os.path.join(os.path.dirname(env_path), 'Result')
+
+# Ensure the result directory exists
+os.makedirs(RESULT_DIR, exist_ok=True)
 
 class RemoteSystemMonitor:
     def __init__(self, measurement_interval=1,
@@ -429,7 +440,7 @@ def main():
         print(f"Disk CO2 Emissions: {(server_df['disk_base_co2'] + server_df['disk_io_co2']).sum():.6f} kg CO2e")
 
     # Save results to CSV
-    filename = "multi_server_metrics.csv"
+    filename = os.path.join(RESULT_DIR, "multiple_server_data.csv")
     df.to_csv(filename, index=False)
     print(f"\nDetailed metrics saved to {filename}")
 
