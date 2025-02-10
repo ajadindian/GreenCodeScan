@@ -242,6 +242,14 @@
             border-color: transparent var(--text) transparent transparent;
         }
 
+        .filter-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--spacing-lg);
+            align-items: start;
+        }
+        
+
 
         /* Dropdown Styles */
         .select-wrapper {
@@ -414,6 +422,105 @@
             line-height: 1.5;
         }
 
+        /* Overview section */
+
+        .overview-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow);
+        }
+
+        .overview-section h3 {
+            color: var(--text);
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: var(--spacing-md);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .overview-section h3 i {
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+
+        .overview-data {
+            display: grid;
+            gap: var(--spacing-sm);
+        }
+
+        .data-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-sm);
+            background: var(--background);
+            border-radius: var(--radius-sm);
+            transition: var(--transition);
+        }
+
+        .data-item:hover {
+            background: var(--primary-light);
+        }
+
+        .data-label {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .data-value {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .overview-divider {
+            height: 1px;
+            background: var(--border);
+            margin: var(--spacing-lg) 0;
+        }
+
+        .dashboard-section {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: var(--spacing-lg);
+            box-shadow: var(--shadow);
+            margin-bottom: var(--spacing-xl);
+        }
+
+        .section-header {
+            margin-bottom: var(--spacing-lg);
+            padding-bottom: var(--spacing-md);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+        }
+
+        .section-title i {
+            color: var(--primary);
+        }
+
+        .overview-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: var(--spacing-lg);
+        }
+
+        .overview-card {
+            background: var(--background);
+            border-radius: var(--radius);
+            padding: var(--spacing-lg);
+        }
+
+
         /* Animations */
         @keyframes slideDown {
             from {
@@ -440,6 +547,15 @@
         }
 
         /* Responsive Design */
+        @media (max-width: 992px) {
+            .filter-layout {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-md);
+            }
+            .overview-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         @media (max-width: 768px) {
             .container {
                 padding: var(--spacing-md);
@@ -509,44 +625,47 @@
         </div>
     </header>
     <div class="wrapper">
-        <div class="container">
-            <div class="filter-section">
-                <div class="filter-header">
-                    <h2 class="filter-title">
-                        <i class="fas fa-calendar-alt"></i>
-                        Select Run Date
+        <div class="container">        
+            <!-- Analysis History Section -->
+            <div class="dashboard-section">
+                <div class="section-header">
+                    <h2 class="section-title">
+                        <i class="fas fa-history"></i>
+                        Analysis History
                         <div class="info-tooltip">
                             <i class="fas fa-info"></i>
                             <div class="tooltip-content">
-                                Select a date to view recommendations and changes from specific analysis runs, which provide insights on code and server improvements.
+                                View and search through historical analysis runs and their recommendations.
                             </div>
                         </div>
                     </h2>
                 </div>
-                <div class="select-wrapper">
-                    <select id="dateSelect">
-                        <option value="" disabled selected>-- Select Date --</option>
-                        {% for date in unique_dates %}
-                            <option value="{{ date }}">{{ date }}</option>
-                        {% endfor %}
-                    </select>
+                <div class="filter-controls">
+                    <div class="select-wrapper">
+                        <select id="dateSelect">
+                            <option value="" disabled selected>-- Select Date --</option>
+                            {% for date in unique_dates %}
+                                <option value="{{ date }}">{{ date }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="search-container" id="searchContainer">
+                        <div class="search-wrapper">
+                            <input type="text" id="searchBox" class="search-box" placeholder="Search for filename, changes made in file, next steps...">
+                            <i class="fas fa-search"></i>
+                        </div>
+                    </div>
                 </div>
-                <div class="search-container" id="searchContainer">
-                    <div class="search-wrapper">
-                        <input type="text" id="searchBox" class="search-box" placeholder="Search for filename, changes made in file, next steps...">
-                        <i class="fas fa-search"></i>
+                <div id="recommendationsContainer">
+                    <!-- Empty state -->
+                    <div class="empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <p>Select a date to view next steps and modification analysis</p>
                     </div>
                 </div>
             </div>
-
-            <div id="recommendationsContainer">
-                <!-- Empty state -->
-                <div class="empty-state">
-                    <i class="fas fa-clipboard-list"></i>
-                    <p>Select a date to view recommendations</p>
-                </div>
-            </div>
         </div>
+        
     </div>
 
     <script type="text/template" id="recommendationsData">
