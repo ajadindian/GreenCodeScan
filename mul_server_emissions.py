@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 from threading import Lock
 import logging
-#import wmi
+import wmi
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -303,7 +303,7 @@ class RemoteSystemMonitor:
 
             # Add common metrics with a formatted timestamp
             metrics.update({
-                'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Formatted timestamp
+                'timestamp': datetime.now(),
                 'hostname': hostname,
                 'os_type': os_type
             })
