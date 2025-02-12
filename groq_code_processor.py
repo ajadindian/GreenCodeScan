@@ -141,7 +141,8 @@ def clean_code_content(content):
 def process_with_retry(prompt, content):
     """Process content with retry logic."""
     return groq_client.chat.completions.create(
-        model="deepseek-r1-distill-llama-70b",
+        # model="deepseek-r1-distill-llama-70b",
+        model="deepseek-r1-distill-qwen-32b",
         messages=[{"role": "user", "content": f"{prompt}\n\n{content}"}],
         temperature=0.1
     )
