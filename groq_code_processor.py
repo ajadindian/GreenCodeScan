@@ -73,7 +73,8 @@ NEXT_STEPS_END
 """
 
 # Initialize Groq client
-groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+# groq_client = Groq(api_key=os.getenv("GROQ_API_KEY"))
+groq_client = Groq(api_key="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")
 
 # Statistics tracking
 processing_stats = {
