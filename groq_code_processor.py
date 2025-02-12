@@ -29,7 +29,7 @@ EXCLUDED_FILES = [
     'emissions_report.html', 'details_report.html', 'last_run_details_template.html',
     'last_run_report_template.html', 'server_report.html', 'AzureMarketplace.py',
     'details_server_template.html', 'recommendations_template.html',
-    'code_refiner.py', 'recommendations_report.html', 'groq_code_processor.py'
+    'code_refiner.py', 'recommendations_report.html', 'groq_code_processor.py', 'mul_server_emissions.py'
 ]
 
 FILE_EXTENSIONS = ('.py', '.java', '.js', '.ts')
